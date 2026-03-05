@@ -13,15 +13,16 @@
   },
   "dependencies": {
     "@hubspot/api-client": "^12.0.1",
-    "express": "^4.21.2",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "luxon": "^3.5.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/luxon": "^3.4.2",
     "@types/node": "^22.12.0",
+    "@vercel/node": "^5.6.11",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
