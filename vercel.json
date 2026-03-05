@@ -5,5 +5,9 @@
       "src": "api/**/*.ts",
       "use": "@vercel/node"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/health", "destination": "/api/health.ts" },
+    { "source": "/api/vapi/webhook", "destination": "/api/vapi/webhook.ts" }
   ]
 }
