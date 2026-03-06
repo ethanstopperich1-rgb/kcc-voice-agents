@@ -116,12 +116,12 @@ function handleAssistantRequest(res: VercelResponse) {
       console.log("[Assistant-Request] Business hours → Squad");
       return res.json({ squadId: process.env.VAPI_SQUAD_ID });
     }
-    console.log("[Assistant-Request] Business hours → Aria");
-    return res.json({ assistantId: process.env.VAPI_ARIA_ASSISTANT_ID });
+    console.log("[Assistant-Request] Business hours → Maria");
+    return res.json({ assistantId: process.env.VAPI_MARIA_ASSISTANT_ID });
   }
 
-  console.log("[Assistant-Request] After hours → After-hours Aria");
-  return res.json({ assistantId: process.env.VAPI_ARIA_AFTER_HOURS_ID });
+  console.log("[Assistant-Request] After hours → Maria (After Hours)");
+  return res.json({ assistantId: process.env.VAPI_MARIA_AFTER_HOURS_ID });
 }
 
 // ─── Business Hours Check ────────────────────────────────────

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.ts",
+    "start": "node dist/server.js",
     "setup:vapi": "tsx scripts/setup-vapi.ts",
     "setup:hubspot": "tsx scripts/setup-hubspot.ts",
     "tunnel": "ngrok http 3000"

@@ -1,63 +1,86 @@
-import { DESIGNERS } from "../config/designers";
-
 /**
  * Build the complete Vapi Squad JSON configuration.
  *
- * The squad has 1 Main Receptionist (Aria) + 5 Designer Assistants.
- * Aria is always the first member (entry point for all calls).
- * Each designer assistant is available for handoff when triggered.
+ * Architecture: 2-agent squad
+ * - Maria (Receptionist) — entry point for all calls
+ * - Jason (Universal Design Assistant) — handles all designer-related intake
+ *
+ * Maria hands off to Jason when callers need design help, product questions,
+ * or want to connect with a specific designer. Jason handles all designers.
+ *
+ * Key features:
+ * - contextEngineeringPlan: passes only user/assistant messages (no tool noise)
+ * - variableExtractionPlan: extracts structured data before handoff
+ * - artifactPlan: full message history for debugging
  */
 export function buildSquadConfig(assistantIds: {
-  ariaId: string;
-  designerIds: Record<string, string>; // { "Jen": "asst_xxx", ... }
+  mariaId: string;
+  jasonId: string;
 }) {
-  // Build handoff destinations from Aria to each designer
-  const handoffDestinations = DESIGNERS.map((d) => ({
-    type: "assistant" as const,
-    assistantId: assistantIds.designerIds[d.name],
-    description: `Transfer when caller asks for ${d.name}, says "my designer" and ${d.name} is their preferred designer, or when CRM lookup identifies them as ${d.name}'s client. Trigger SILENTLY — do NOT say "I'm transferring you."`,
-  }));
-
   return {
     name: "Kitchen Crest Cabinet Squad",
     members: [
       {
-        assistantId: assistantIds.ariaId,
+        assistantId: assistantIds.mariaId,
         assistantOverrides: {
           model: {
             tools: [
               {
                 type: "handoff",
-                destinations: handoffDestinations,
-                function: { name: "handoff_to_designer" },
+                destinations: [
+                  {
+                    type: "assistant" as const,
+                    assistantId: assistantIds.jasonId,
+                    description:
+                      "Transfer to Jason (design team) when the caller needs design help, product questions beyond the knowledge base, wants to connect with a specific designer, or is an existing customer requesting their designer. Maria announces the transfer: 'Let me get you over to Jason on our design team.'",
+                    contextEngineeringPlan: {
+                      type: "userAndAssistantMessages" as const,
+                    },
+                    variableExtractionPlan: {
+                      enabled: true,
+                      variables: [
+                        {
+                          name: "caller_name",
+                          description: "The caller's full name",
+                          type: "string" as const,
+                        },
+                        {
+                          name: "company_name",
+                          description: "The caller's company or business name",
+                          type: "string" as const,
+                        },
+                        {
+                          name: "preferred_designer",
+                          description:
+                            "The designer the caller wants to work with (Jen, Carlos, Nancy, or Derek)",
+                          type: "string" as const,
+                        },
+                        {
+                          name: "project_type",
+                          description:
+                            "The type of project: kitchen, bathroom, laundry, etc.",
+                          type: "string" as const,
+                        },
+                      ],
+                    },
+                  },
+                ],
+                function: {
+                  name: "handoff_to_jason",
+                  description:
+                    "Hand off the call to Jason on the design team. Use when the caller needs design assistance, has product questions, or wants to connect with their designer.",
+                },
               },
             ],
           },
         },
       },
-      // Each designer assistant as a squad member
-      ...DESIGNERS.map((d) => ({
-        assistantId: assistantIds.designerIds[d.name],
-      })),
+      {
+        assistantId: assistantIds.jasonId,
+      },
     ],
-    memberOverrides: {
-      voice: { provider: "vapi", voiceId: "Elliot" },
+    artifactPlan: {
+      fullMessageHistoryEnabled: true,
     },
   };
-}
-
-/**
- * Returns the squad JSON that can be used for creating a squad via Vapi API.
- * Uses placeholder IDs — replace after provisioning assistants.
- */
-export function buildSquadTemplate() {
-  const placeholders: Record<string, string> = {};
-  DESIGNERS.forEach((d) => {
-    placeholders[d.name] = `PLACEHOLDER_${d.name.toUpperCase()}_ID`;
-  });
-
-  return buildSquadConfig({
-    ariaId: "PLACEHOLDER_ARIA_ID",
-    designerIds: placeholders,
-  });
 }

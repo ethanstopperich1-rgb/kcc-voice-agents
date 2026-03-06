@@ -73,7 +73,7 @@ export function buildToolDefinitions(serverUrl: string) {
             },
             preferred_designer: {
               type: "string",
-              description: "Name of preferred designer (Jen, Carlos, Nancy, Maria, Derek)",
+              description: "Name of preferred designer (Jen, Carlos, Nancy, Derek)",
             },
           },
           required: ["contact_name"],

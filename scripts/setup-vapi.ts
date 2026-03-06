@@ -2,6 +2,8 @@
  * Vapi Provisioning Script
  *
  * Creates all assistants, uploads knowledge base files, and configures the squad.
+ * Architecture: Maria (Receptionist) + Jason (Universal Design Assistant)
+ *
  * Run: npx tsx scripts/setup-vapi.ts
  */
 import "dotenv/config";
@@ -11,15 +13,12 @@ import * as path from "path";
 import FormData from "form-data";
 import { DESIGNERS } from "../src/config/designers";
 import {
-  ARIA_SYSTEM_PROMPT,
-  ARIA_FIRST_MESSAGE,
-  ARIA_AFTER_HOURS_SYSTEM_PROMPT,
-  ARIA_AFTER_HOURS_FIRST_MESSAGE,
-} from "../src/vapi/prompts/aria";
-import {
-  buildDesignerSystemPrompt,
-  buildDesignerFirstMessage,
-} from "../src/vapi/prompts/designer";
+  MARIA_SYSTEM_PROMPT,
+  MARIA_FIRST_MESSAGE,
+  MARIA_AFTER_HOURS_SYSTEM_PROMPT,
+  MARIA_AFTER_HOURS_FIRST_MESSAGE,
+} from "../src/vapi/prompts/maria";
+import { JASON_SYSTEM_PROMPT, JASON_FIRST_MESSAGE } from "../src/vapi/prompts/jason";
 
 const VAPI_API_KEY = process.env.VAPI_API_KEY;
 const SERVER_URL = process.env.SERVER_URL || "https://kcc-voice-agents.vercel.app";
@@ -57,14 +56,15 @@ function getToolDefs() {
             project_type: { type: "string", description: "kitchen_full, kitchen_partial, bathroom, laundry, garage, other" },
             linear_feet: { type: "number", description: "Total linear feet of cabinetry" },
             style_preference: { type: "string", description: "shaker, estate, or modern_wood" },
-            preferred_designer: { type: "string", description: "Jen, Carlos, Nancy, Maria, or Derek" },
+            preferred_designer: { type: "string", description: "Jen, Carlos, Nancy, or Derek" },
+            referred_by: { type: "string", description: "Who referred the caller, if anyone" },
           },
           required: ["contact_name"],
         },
       },
       server: { url: WEBHOOK_URL },
       messages: [
-        { type: "request-start", content: "Let me save that information..." },
+        { type: "request-start", content: "One sec while I save that..." },
         { type: "request-complete", content: "Got it, all saved!" },
         { type: "request-failed", content: "I had a little trouble saving that. Could you repeat?" },
       ],
@@ -90,7 +90,7 @@ function getToolDefs() {
       },
       server: { url: WEBHOOK_URL },
       messages: [
-        { type: "request-start", content: "Let me save those measurements..." },
+        { type: "request-start", content: "One sec while I save those measurements..." },
         { type: "request-complete", content: "Got it, all saved!" },
         { type: "request-failed", content: "Could you repeat those measurements?" },
       ],
@@ -130,7 +130,7 @@ function getToolDefs() {
 }
 
 async function main() {
-  console.log("\n🔧 Kitchen Crest Voice AI — Vapi Setup\n");
+  console.log("\n🔧 Kitchen Crest Voice AI — Vapi Setup (2-Agent Architecture)\n");
   console.log(`   Webhook URL: ${WEBHOOK_URL}\n`);
 
   const tools = getToolDefs();
@@ -181,63 +181,63 @@ async function main() {
     };
   }
 
-  // ─── Step 2: Create Aria (Main Receptionist) ──────────────
-  console.log("\n🎙️  Step 2: Creating Aria (Main Receptionist)...\n");
+  // ─── Step 2: Create Maria (Main Receptionist) ──────────────
+  console.log("\n🎙️  Step 2: Creating Maria (Receptionist)...\n");
 
-  const ariaTools: any[] = [tools.pushToHubspot, tools.checkBusinessHours, tools.saveMessage];
-  if (kbTool) ariaTools.push(kbTool);
+  const mariaTools: any[] = [tools.pushToHubspot, tools.checkBusinessHours, tools.saveMessage];
+  if (kbTool) mariaTools.push(kbTool);
 
-  const { data: aria } = await vapi.post("/assistant", {
-    name: "Aria - Main Receptionist",
+  const { data: maria } = await vapi.post("/assistant", {
+    name: "Maria - Receptionist",
     model: {
       provider: "openai",
       model: "gpt-4o",
-      temperature: 0.7,
-      messages: [{ role: "system", content: ARIA_SYSTEM_PROMPT }],
-      tools: ariaTools,
+      temperature: 0.4,
+      messages: [{ role: "system", content: MARIA_SYSTEM_PROMPT }],
+      tools: mariaTools,
     },
     voice: { provider: "vapi", voiceId: "Elliot" },
-    firstMessage: ARIA_FIRST_MESSAGE,
+    firstMessage: MARIA_FIRST_MESSAGE,
     serverUrl: WEBHOOK_URL,
-    endCallMessage: "Thank you for calling Kitchen Crest Cabinets! Have a great day.",
+    endCallMessage: "Thanks for calling Kitchen Crest Cabinets! Have a great day.",
     maxDurationSeconds: 600,
     silenceTimeoutSeconds: 30,
+    responseDelaySeconds: 0.5,
     backchannelingEnabled: true,
     backgroundDenoisingEnabled: true,
   });
-  console.log(`  ✓ Aria created: ${aria.id}`);
+  console.log(`  ✓ Maria created: ${maria.id}`);
 
-  // ─── Step 3: Create Aria After-Hours ──────────────────────
-  console.log("\n🌙 Step 3: Creating Aria (After Hours)...\n");
+  // ─── Step 3: Create Maria After-Hours ──────────────────────
+  console.log("\n🌙 Step 3: Creating Maria (After Hours)...\n");
 
-  const { data: ariaAH } = await vapi.post("/assistant", {
-    name: "Aria - After Hours",
+  const { data: mariaAH } = await vapi.post("/assistant", {
+    name: "Maria - After Hours",
     model: {
       provider: "openai",
       model: "gpt-4o",
-      temperature: 0.7,
-      messages: [{ role: "system", content: ARIA_AFTER_HOURS_SYSTEM_PROMPT }],
+      temperature: 0.4,
+      messages: [{ role: "system", content: MARIA_AFTER_HOURS_SYSTEM_PROMPT }],
       tools: [tools.saveMessage, tools.pushToHubspot],
     },
     voice: { provider: "vapi", voiceId: "Elliot" },
-    firstMessage: ARIA_AFTER_HOURS_FIRST_MESSAGE,
+    firstMessage: MARIA_AFTER_HOURS_FIRST_MESSAGE,
     serverUrl: WEBHOOK_URL,
-    endCallMessage: "Thank you for calling Kitchen Crest Cabinets. We'll reach out first thing tomorrow. Goodnight!",
+    endCallMessage: "Thanks for calling Kitchen Crest Cabinets. We'll reach out first thing tomorrow. Goodnight!",
     maxDurationSeconds: 300,
     silenceTimeoutSeconds: 20,
   });
-  console.log(`  ✓ Aria After-Hours created: ${ariaAH.id}`);
+  console.log(`  ✓ Maria After-Hours created: ${mariaAH.id}`);
 
-  // ─── Step 4: Create Designer Assistants ───────────────────
-  console.log("\n👥 Step 4: Creating Designer Assistants...\n");
-  const designerIds: Record<string, string> = {};
+  // ─── Step 4: Create Jason (Universal Design Assistant) ─────
+  console.log("\n🎨 Step 4: Creating Jason (Design Team)...\n");
 
+  const jasonTools: any[] = [tools.pushToHubspot, tools.collectMeasurements];
+  if (kbTool) jasonTools.push(kbTool);
+
+  // Add warm transfer tools for each designer
   for (const designer of DESIGNERS) {
-    const designerTools: any[] = [tools.pushToHubspot, tools.collectMeasurements];
-    if (kbTool) designerTools.push(kbTool);
-
-    // Add warm transfer tool
-    designerTools.push({
+    jasonTools.push({
       type: "transferCall",
       function: { name: `warmTransferTo${designer.name}` },
       destinations: [
@@ -246,10 +246,10 @@ async function main() {
           number: designer.phone,
           transferPlan: {
             mode: "warm-transfer-experimental",
-            message: `Hi ${designer.name}, I have a caller interested in Kitchen Crest cabinets. Are you available?`,
+            message: `Hi ${designer.name}, I have a caller on the line with project details ready for you. Are you available?`,
             voicemailDetectionType: "transcript",
             fallbackPlan: {
-              message: `${designer.name} is unavailable right now. They'll call you back within the hour.`,
+              message: `Looks like ${designer.name} is on another call right now. I'll get this info over to ${designer.name} and they'll follow up with you shortly.`,
               endCallEnabled: false,
             },
             summaryPlan: {
@@ -257,7 +257,7 @@ async function main() {
               messages: [
                 {
                   role: "system",
-                  content: `Summarize the caller's cabinet project for ${designer.name} in 2-3 sentences.`,
+                  content: `Summarize the caller's cabinet project for ${designer.name} in 2-3 sentences. Include room type, style, color, and measurements if available.`,
                 },
               ],
             },
@@ -265,87 +265,119 @@ async function main() {
         },
       ],
       messages: [
-        { type: "request-start", content: `Let me check if ${designer.name} is available.` },
-        { type: "request-failed", content: `${designer.name} isn't available right now.` },
+        { type: "request-start", content: `Let me see if ${designer.name} is available right now.` },
+        { type: "request-failed", content: `${designer.name} isn't available right now. I'll make sure they get all your info and follow up shortly.` },
       ],
     });
-
-    const { data: asst } = await vapi.post("/assistant", {
-      name: designer.assistantName,
-      model: {
-        provider: "openai",
-        model: "gpt-4o",
-        temperature: 0.7,
-        messages: [
-          { role: "system", content: buildDesignerSystemPrompt(designer) },
-        ],
-        tools: designerTools,
-      },
-      voice: { provider: "vapi", voiceId: "Elliot" },
-      firstMessage: buildDesignerFirstMessage(designer),
-      serverUrl: WEBHOOK_URL,
-      endCallMessage: `Thanks for reaching out to ${designer.name}'s team at Kitchen Crest. We'll be in touch!`,
-      maxDurationSeconds: 600,
-      silenceTimeoutSeconds: 30,
-      backchannelingEnabled: true,
-    });
-
-    designerIds[designer.name] = asst.id;
-    console.log(`  ✓ ${designer.assistantName}: ${asst.id}`);
   }
 
-  // ─── Step 5: Create Squad ─────────────────────────────────
-  console.log("\n🏢 Step 5: Creating Kitchen Crest Squad...\n");
+  const { data: jason } = await vapi.post("/assistant", {
+    name: "Jason - Design Team",
+    model: {
+      provider: "openai",
+      model: "gpt-4o",
+      temperature: 0.5,
+      messages: [{ role: "system", content: JASON_SYSTEM_PROMPT }],
+      tools: jasonTools,
+    },
+    voice: { provider: "vapi", voiceId: "Elliot" },
+    firstMessage: JASON_FIRST_MESSAGE,
+    serverUrl: WEBHOOK_URL,
+    endCallMessage: "Thanks for calling Kitchen Crest! Your designer will be in touch shortly.",
+    maxDurationSeconds: 600,
+    silenceTimeoutSeconds: 30,
+    backchannelingEnabled: true,
+    backgroundDenoisingEnabled: true,
+  });
+  console.log(`  ✓ Jason created: ${jason.id}`);
 
-  const handoffDestinations = DESIGNERS.map((d) => ({
-    type: "assistant",
-    assistantId: designerIds[d.name],
-    description: `Transfer when caller asks for ${d.name} or is identified as ${d.name}'s client.`,
-  }));
+  // ─── Step 5: Create Squad ─────────────────────────────────
+  console.log("\n🏢 Step 5: Creating Kitchen Crest Squad (Maria + Jason)...\n");
 
   const { data: squad } = await vapi.post("/squad", {
     name: "Kitchen Crest Cabinet Squad",
     members: [
       {
-        assistantId: aria.id,
+        assistantId: maria.id,
         assistantOverrides: {
           model: {
             provider: "openai",
             model: "gpt-4o",
             tools: [
-              ...ariaTools,
+              ...mariaTools,
               {
                 type: "handoff",
-                destinations: handoffDestinations,
-                function: { name: "handoff_to_designer" },
+                destinations: [
+                  {
+                    type: "assistant",
+                    assistantId: jason.id,
+                    description:
+                      "Transfer to Jason (design team) when the caller needs design help, product questions beyond the knowledge base, wants to connect with a specific designer, or is an existing customer requesting their designer. Maria announces the transfer: 'Let me get you over to Jason on our design team.'",
+                    contextEngineeringPlan: {
+                      type: "userAndAssistantMessages",
+                    },
+                    variableExtractionPlan: {
+                      enabled: true,
+                      variables: [
+                        {
+                          name: "caller_name",
+                          description: "The caller's full name",
+                          type: "string",
+                        },
+                        {
+                          name: "company_name",
+                          description: "The caller's company or business name",
+                          type: "string",
+                        },
+                        {
+                          name: "preferred_designer",
+                          description: "The designer the caller wants to work with (Jen, Carlos, Nancy, or Derek)",
+                          type: "string",
+                        },
+                        {
+                          name: "project_type",
+                          description: "The type of project: kitchen, bathroom, laundry, etc.",
+                          type: "string",
+                        },
+                      ],
+                    },
+                  },
+                ],
+                function: {
+                  name: "handoff_to_jason",
+                  description:
+                    "Hand off the call to Jason on the design team. Use when the caller needs design assistance, has product questions, or wants to connect with their designer.",
+                },
               },
             ],
           },
         },
       },
-      ...DESIGNERS.map((d) => ({
-        assistantId: designerIds[d.name],
-      })),
+      {
+        assistantId: jason.id,
+      },
     ],
+    artifactPlan: {
+      fullMessageHistoryEnabled: true,
+    },
   });
   console.log(`  ✓ Squad created: ${squad.id}`);
 
   // ─── Summary ──────────────────────────────────────────────
   console.log("\n" + "═".repeat(60));
-  console.log("  SETUP COMPLETE");
+  console.log("  SETUP COMPLETE — 2-Agent Architecture");
   console.log("═".repeat(60));
-  console.log(`\n  Aria (Main):        ${aria.id}`);
-  console.log(`  Aria (After Hours): ${ariaAH.id}`);
-  for (const [name, id] of Object.entries(designerIds)) {
-    console.log(`  ${name}'s Assistant:  ${id}`);
-  }
-  console.log(`  Squad:              ${squad.id}`);
-  console.log(`  Knowledge Base:     ${fileIds.length} files`);
-  console.log(`  Webhook:            ${WEBHOOK_URL}`);
+  console.log(`\n  Maria (Receptionist):  ${maria.id}`);
+  console.log(`  Maria (After Hours):  ${mariaAH.id}`);
+  console.log(`  Jason (Design Team):  ${jason.id}`);
+  console.log(`  Squad:                ${squad.id}`);
+  console.log(`  Knowledge Base:       ${fileIds.length} files`);
+  console.log(`  Webhook:              ${WEBHOOK_URL}`);
 
   console.log(`\n  Add to .env:`);
-  console.log(`  VAPI_ARIA_ASSISTANT_ID=${aria.id}`);
-  console.log(`  VAPI_ARIA_AFTER_HOURS_ID=${ariaAH.id}`);
+  console.log(`  VAPI_MARIA_ASSISTANT_ID=${maria.id}`);
+  console.log(`  VAPI_MARIA_AFTER_HOURS_ID=${mariaAH.id}`);
+  console.log(`  VAPI_JASON_ASSISTANT_ID=${jason.id}`);
   console.log(`  VAPI_SQUAD_ID=${squad.id}`);
 
   console.log("\n  Next: Buy a phone number in Vapi dashboard → assign squad → call it!\n");
