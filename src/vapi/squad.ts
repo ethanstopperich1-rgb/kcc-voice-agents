@@ -32,37 +32,7 @@ export function buildSquadConfig(assistantIds: {
                     type: "assistant" as const,
                     assistantId: assistantIds.jasonId,
                     description:
-                      "Transfer to Jason (design team) when the caller needs design help, product questions beyond the knowledge base, wants to connect with a specific designer, or is an existing customer requesting their designer. Maria announces the transfer: 'Let me get you over to Jason on our design team.'",
-                    contextEngineeringPlan: {
-                      type: "userAndAssistantMessages" as const,
-                    },
-                    variableExtractionPlan: {
-                      enabled: true,
-                      variables: [
-                        {
-                          name: "caller_name",
-                          description: "The caller's full name",
-                          type: "string" as const,
-                        },
-                        {
-                          name: "company_name",
-                          description: "The caller's company or business name",
-                          type: "string" as const,
-                        },
-                        {
-                          name: "preferred_designer",
-                          description:
-                            "The designer the caller wants to work with (Jen, Carlos, Nancy, or Derek)",
-                          type: "string" as const,
-                        },
-                        {
-                          name: "project_type",
-                          description:
-                            "The type of project: kitchen, bathroom, laundry, etc.",
-                          type: "string" as const,
-                        },
-                      ],
-                    },
+                      "Transfer to Jason on the design team when the caller needs design help, product questions, wants to connect with a specific designer, or is an existing customer requesting their designer.",
                   },
                 ],
                 function: {
@@ -79,8 +49,5 @@ export function buildSquadConfig(assistantIds: {
         assistantId: assistantIds.jasonId,
       },
     ],
-    artifactPlan: {
-      fullMessageHistoryEnabled: true,
-    },
   };
 }

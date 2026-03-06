@@ -317,7 +317,6 @@ async function main() {
                       type: "userAndAssistantMessages",
                     },
                     variableExtractionPlan: {
-                      enabled: true,
                       variables: [
                         {
                           name: "caller_name",
@@ -357,9 +356,6 @@ async function main() {
         assistantId: jason.id,
       },
     ],
-    artifactPlan: {
-      fullMessageHistoryEnabled: true,
-    },
   });
   console.log(`  ✓ Squad created: ${squad.id}`);
 
