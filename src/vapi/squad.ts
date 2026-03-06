@@ -3,15 +3,24 @@
  *
  * Architecture: 2-agent squad
  * - Maria (Receptionist) — entry point for all calls
- * - Jason (Universal Design Assistant) — handles all designer-related intake
+ * - Jason (Universal Design Assistant) — handles existing customer inquiries
  *
- * Maria hands off to Jason when callers need design help, product questions,
- * or want to connect with a specific designer. Jason handles all designers.
+ * Maria hands off to Jason when an existing customer needs design help,
+ * order questions, or wants to speak with their designer.
  *
- * Key features:
- * - contextEngineeringPlan: passes only user/assistant messages (no tool noise)
- * - variableExtractionPlan: extracts structured data before handoff
- * - artifactPlan: full message history for debugging
+ * IMPORTANT: Handoff uses `assistantDestinations` on the squad member —
+ * NOT model.tools, NOT tools:append, NOT handoff tools on the base assistant.
+ * Vapi auto-generates a transferCall tool from assistantDestinations that
+ * it fully controls for squad-level transfers.
+ *
+ * What DOESN'T work (learned the hard way):
+ * - tools:append in assistantOverrides → stored in config but LLM never sees the tool
+ * - handoff tool on base assistant → LLM calls it, returns "Handoff initiated" text,
+ *   but Vapi doesn't process it as a squad transfer (Transfers: NONE, Nodes: 0)
+ *
+ * What WORKS:
+ * - assistantDestinations on squad member → Vapi generates a transferCall tool,
+ *   LLM sees it, calls it, and Vapi processes it as a real squad transfer
  */
 export function buildSquadConfig(assistantIds: {
   mariaId: string;
@@ -22,31 +31,21 @@ export function buildSquadConfig(assistantIds: {
     members: [
       {
         assistantId: assistantIds.mariaId,
-        assistantOverrides: {
-          model: {
-            tools: [
-              {
-                type: "handoff",
-                destinations: [
-                  {
-                    type: "assistant" as const,
-                    assistantId: assistantIds.jasonId,
-                    description:
-                      "Transfer to Jason on the design team when the caller needs design help, product questions, wants to connect with a specific designer, or is an existing customer requesting their designer.",
-                  },
-                ],
-                function: {
-                  name: "handoff_to_jason",
-                  description:
-                    "Hand off the call to Jason on the design team. Use when the caller needs design assistance, has product questions, or wants to connect with their designer.",
-                },
-              },
-            ],
+        // assistantDestinations auto-generates a transferCall tool
+        // that Vapi fully controls for squad-level transfers
+        assistantDestinations: [
+          {
+            type: "assistant" as const,
+            assistantName: "Jason - Design Team", // Must match Jason's assistant name exactly
+            message: "", // Silent transition — Jason has his own firstMessage
+            description:
+              "Transfer to Jason on the design team when an existing customer needs help with design, orders, or wants to speak with their designer.",
           },
-        },
+        ],
       },
       {
         assistantId: assistantIds.jasonId,
+        // No destinations — Jason doesn't transfer back to Maria
       },
     ],
   };

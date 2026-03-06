@@ -1,4 +1,3 @@
-import { DESIGNERS } from "../config/designers";
 import {
   MARIA_SYSTEM_PROMPT,
   MARIA_FIRST_MESSAGE,
@@ -21,8 +20,9 @@ export function buildMariaAssistant(serverUrl: string) {
       messages: [{ role: "system", content: MARIA_SYSTEM_PROMPT }],
     },
     voice: {
-      provider: "vapi",
-      voiceId: "Elliot",
+      provider: "rime-ai",
+      voiceId: "lagoon",
+      model: "mistv2",
     },
     firstMessage: MARIA_FIRST_MESSAGE,
     serverUrl: `${serverUrl}/vapi/webhook`,
@@ -33,7 +33,7 @@ export function buildMariaAssistant(serverUrl: string) {
       tools.saveMessage,
     ],
     endCallMessage:
-      "Thanks for calling Kitchen Crest Cabinets! Have a great day.",
+      "Thank you so much for choosing Kitchen Crest Cabinets, have a great day!",
     maxDurationSeconds: 600,
     silenceTimeoutSeconds: 30,
     responseDelaySeconds: 0.5,
@@ -57,8 +57,9 @@ export function buildMariaAfterHoursAssistant(serverUrl: string) {
       ],
     },
     voice: {
-      provider: "vapi",
-      voiceId: "Elliot",
+      provider: "rime-ai",
+      voiceId: "lagoon",
+      model: "mistv2",
     },
     firstMessage: MARIA_AFTER_HOURS_FIRST_MESSAGE,
     serverUrl: `${serverUrl}/vapi/webhook`,
@@ -76,45 +77,10 @@ export function buildMariaAfterHoursAssistant(serverUrl: string) {
 export function buildJasonAssistant(serverUrl: string) {
   const tools = buildToolDefinitions(serverUrl);
 
-  // Build warm transfer tools for each designer
-  const warmTransferTools = DESIGNERS.map((designer) => ({
-    type: "transferCall" as const,
-    function: { name: `warmTransferTo${designer.name}` },
-    destinations: [
-      {
-        type: "number" as const,
-        number: designer.phone,
-        transferPlan: {
-          mode: "warm-transfer-experimental",
-          message: `Hi ${designer.name}, I have a caller on the line with project details ready for you. Are you available?`,
-          voicemailDetectionType: "transcript",
-          fallbackPlan: {
-            message: `Looks like ${designer.name} is on another call right now. I'll get this info over to ${designer.name} and they'll follow up with you shortly.`,
-            endCallEnabled: false,
-          },
-          summaryPlan: {
-            enabled: true,
-            messages: [
-              {
-                role: "system",
-                content: `Summarize the caller's cabinet project for ${designer.name} in 2-3 sentences. Include room type, style, color, and measurements if available.`,
-              },
-            ],
-          },
-        },
-      },
-    ],
-    messages: [
-      {
-        type: "request-start",
-        content: `Let me see if ${designer.name} is available right now.`,
-      },
-      {
-        type: "request-failed",
-        content: `${designer.name} isn't available right now. I'll make sure they get all your info and follow up shortly.`,
-      },
-    ],
-  }));
+  // NOTE: Jason does NOT have a transferCall tool for designers.
+  // Per the prompt, Jason always tells callers the designer isn't available
+  // and proactively helps collect info / answer questions himself.
+  // He pushes everything to HubSpot and the designer follows up.
 
   return {
     name: "Jason - Design Team",
@@ -125,8 +91,9 @@ export function buildJasonAssistant(serverUrl: string) {
       messages: [{ role: "system", content: JASON_SYSTEM_PROMPT }],
     },
     voice: {
-      provider: "vapi",
-      voiceId: "Elliot",
+      provider: "rime-ai",
+      voiceId: "walnut",
+      model: "arcana",
     },
     firstMessage: JASON_FIRST_MESSAGE,
     serverUrl: `${serverUrl}/vapi/webhook`,
@@ -134,10 +101,9 @@ export function buildJasonAssistant(serverUrl: string) {
     tools: [
       tools.pushToHubspot,
       tools.collectMeasurements,
-      ...warmTransferTools,
     ],
     endCallMessage:
-      "Thanks for calling Kitchen Crest! Your designer will be in touch shortly.",
+      "Thank you so much for choosing Kitchen Crest Cabinets, have a great day!",
     maxDurationSeconds: 600,
     silenceTimeoutSeconds: 30,
     backchannelingEnabled: true,
